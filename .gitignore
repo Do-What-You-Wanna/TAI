@@ -1,5 +1,10 @@
 # 敏感信息：存放关键账户/密码的文档，绝不可提交到远程仓库
 credentials.md
+agent_app/config/credentials.json
+# 运行期本地文件（含任务内容，不纳入版本控制）
+agent_app/logs/
+agent_app/config/tasks_history.json
+*.log
 
 # Python 虚拟环境与缓存
 agent_app/.venv/

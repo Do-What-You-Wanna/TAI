@@ -1,0 +1,69 @@
+{
+  "general": {
+    "main_model_key": "main",
+    "ollama_url": "http://127.0.0.1:11434",
+    "timeout_seconds": 120
+  },
+  "weights": {
+    "capability": 0.7,
+    "cost": 0.3
+  },
+  "models": [
+    {
+      "key": "main",
+      "name": "qwen2.5:14b(主)",
+      "source": "local",
+      "endpoint": "qwen2.5:14b",
+      "skills": [
+        "规划",
+        "写作",
+        "通用"
+      ],
+      "cost": 1.0,
+      "capability": 70,
+      "is_primary": true,
+      "api_key_ref": ""
+    },
+    {
+      "key": "code",
+      "name": "code-helper",
+      "source": "cloud",
+      "endpoint": "code-helper",
+      "skills": [
+        "代码"
+      ],
+      "cost": 2.0,
+      "capability": 85,
+      "is_primary": false,
+      "api_key_ref": "cloud_api_key"
+    },
+    {
+      "key": "doc",
+      "name": "doc-writer",
+      "source": "cloud",
+      "endpoint": "doc-writer",
+      "skills": [
+        "写作",
+        "校对"
+      ],
+      "cost": 1.5,
+      "capability": 80,
+      "is_primary": false,
+      "api_key_ref": "cloud_api_key"
+    }
+  ],
+  "rules": {
+    "sensitive_keywords": [
+      "密码",
+      "密钥",
+      "token",
+      "隐私",
+      "身份证",
+      "银行卡",
+      "机密",
+      "secret",
+      "password"
+    ],
+    "offline_use_cloud": true
+  }
+}
