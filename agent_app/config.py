@@ -8,10 +8,17 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
-# 应用配置目录（固定位于项目下，与运行目录无关）
-CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+# 定位可写基目录：打包后为 exe 同目录，开发时为项目目录
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 应用配置目录（打包后可写持久化）
+CONFIG_DIR = BASE_DIR / "config"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
 

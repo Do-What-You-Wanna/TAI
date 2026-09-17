@@ -13,5 +13,8 @@ __pycache__/
 
 # Node / 常见构建产物
 node_modules/
-dist/
+
+# 打包产物
 build/
+dist/
+*.spec

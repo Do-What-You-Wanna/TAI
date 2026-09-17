@@ -232,7 +232,7 @@ class ModelManagerPage(QWidget):
         root.addWidget(form)
         root.addLayout(btns)
 
-        self.btn_add.clicked.connect(self._add)
+        self.btn_add.clicked.connect(self._start_add)
         self.btn_update.clicked.connect(self._update)
         self.btn_del.clicked.connect(self._delete)
         self.btn_primary.clicked.connect(self._set_primary)
@@ -269,6 +269,18 @@ class ModelManagerPage(QWidget):
         self.f_cost.setValue(float(self.table.item(r, 5).text()))
         self.f_cap.setValue(int(self.table.item(r, 6).text()))
         self.f_primary.setCurrentText(self.table.item(r, 7).text() or "否")
+        self.f_key.setReadOnly(True)  # 编辑已有行时 key 作为主键不可改，规避更新错位
+
+    def _start_add(self) -> None:
+        """开始新增：解锁 key 并清空表单（区别于编辑已有行）。"""
+        self.f_key.setReadOnly(False)
+        for w in (self.f_key, self.f_name, self.f_endpoint,
+                  self.f_skills, self.f_apikey):
+            w.clear()
+        self.f_source.setCurrentIndex(0)
+        self.f_cost.setValue(1.0)
+        self.f_cap.setValue(50)
+        self.f_primary.setCurrentIndex(0)
 
     def _form_model(self) -> ModelInfo:
         return ModelInfo(

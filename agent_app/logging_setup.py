@@ -5,10 +5,16 @@
 from __future__ import annotations
 
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+# 打包后日志写到 exe 同目录 logs/（可写）；开发时为项目目录 logs/
+if getattr(sys, "frozen", False):
+    _BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    _BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = _BASE_DIR / "logs"
 LOG_FILE = LOG_DIR / "app.log"
 
 
