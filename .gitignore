@@ -1,0 +1,7 @@
+# 敏感信息：存放关键账户/密码的文档，绝不可提交到远程仓库
+credentials.md
+
+# Node / 常见构建产物
+node_modules/
+dist/
+build/
