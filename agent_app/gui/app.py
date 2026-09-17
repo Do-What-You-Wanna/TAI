@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMainWindow, QMessageBox,
-    QPlainTextEdit, QProgressBar, QPushButton, QSpinBox, QTabWidget,
+    QPlainTextEdit, QProgressBar, QSpinBox, QTabWidget,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -26,6 +26,7 @@ from .. import config as app_config
 from ..core.models import ModelInfo, ModelRegistry
 from ..core.orchestrator import Orchestrator
 from ..core.task_history import TaskHistory, assignment_to_dict
+from .theme import APP_QSS, make_button, section_label
 
 
 @dataclass
@@ -73,11 +74,14 @@ class WorkbenchPage(QWidget):
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 14)
+        root.setSpacing(12)
+        root.addWidget(section_label("主任务输入"))
         top = QHBoxLayout()
         self.input = QLineEdit()
         self.input.setPlaceholderText("输入主任务，例如：生成一份项目周报并进行代码检查")
-        self.run_btn = QPushButton("运行")
-        self.stop_btn = QPushButton("中止")
+        self.run_btn = make_button("运行", "▶")
+        self.stop_btn = make_button("中止", "⏹", kind="ghost")
         self.stop_btn.setEnabled(False)
         top.addWidget(self.input, 1)
         top.addWidget(self.run_btn)
@@ -85,6 +89,7 @@ class WorkbenchPage(QWidget):
         root.addLayout(top)
 
         self.status = QLabel("就绪")
+        self.status.setProperty("section", True)
         self.bar = QProgressBar()
         self.bar.setRange(0, 0)          # busy 样式
         self.bar.setVisible(False)
@@ -93,13 +98,16 @@ class WorkbenchPage(QWidget):
 
         self.overview = QPlainTextEdit()
         self.overview.setPlaceholderText("主模型总览将显示在这里")
-        self.overview.setMaximumHeight(90)
+        self.overview.setMaximumHeight(96)
         root.addWidget(QLabel("主模型总览"))
         root.addWidget(self.overview)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["子任务", "分配模型", "理由/评分", "状态", "输出"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)  # 隐藏行号，提升可读性
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setAlternatingRowColors(True)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         root.addWidget(QLabel("子任务分配结果"))
         root.addWidget(self.table)
@@ -200,11 +208,17 @@ class ModelManagerPage(QWidget):
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 14)
+        root.setSpacing(12)
+        root.addWidget(section_label("模型列表"))
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
             ["标识", "名称", "来源", "端点", "技能", "成本", "能力", "主模型"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(True)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # 主列不要被拉伸挤压，固定宽度列改给标识/来源
         root.addWidget(self.table)
 
         form = QGroupBox("模型编辑")
@@ -222,14 +236,17 @@ class ModelManagerPage(QWidget):
                        (self.f_cap, "能力(0-100)"), (self.f_primary, "设为主模型"),
                        (self.f_apikey, "凭证键(云端)")]:
             fl.addRow(lbl, w)
+        root.addWidget(form)
         btns = QHBoxLayout()
-        self.btn_add = QPushButton("新增"); self.btn_update = QPushButton("更新")
-        self.btn_del = QPushButton("删除"); self.btn_primary = QPushButton("设为主模型")
-        self.btn_save = QPushButton("保存到存储")
+        self.btn_add = make_button("新增", "＋")
+        self.btn_update = make_button("更新", "✎", kind="ghost")
+        self.btn_del = make_button("删除", "✕", kind="danger")
+        self.btn_primary = make_button("设为主模型", "★", kind="ghost")
+        self.btn_save = make_button("保存到存储", "✓")
         for b in (self.btn_add, self.btn_update, self.btn_del,
                   self.btn_primary, self.btn_save):
             btns.addWidget(b)
-        root.addWidget(form)
+        btns.addStretch(1)
         root.addLayout(btns)
 
         self.btn_add.clicked.connect(self._start_add)
@@ -350,16 +367,20 @@ class RulesPage(QWidget):
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 14)
+        root.setSpacing(12)
+        root.addWidget(section_label("分配规则"))
+        box = QGroupBox("规则设置")
+        form = QFormLayout(box)
         rules = self.ctx.cfg.get("rules", {})
-        form = QFormLayout()
         self.kw = QLineEdit(",".join(rules.get("sensitive_keywords", [])))
         form.addRow("敏感关键词(逗号分隔，命中则强制本地)", self.kw)
         self.offline = QComboBox()
         self.offline.addItems(["是", "否"])
         self.offline.setCurrentText("是" if rules.get("offline_use_cloud", True) else "否")
         form.addRow("本地离线时是否回退云端", self.offline)
-        root.addLayout(form)
-        self.btn = QPushButton("保存规则")
+        root.addWidget(box)
+        self.btn = make_button("保存规则", "✓")
         self.btn.clicked.connect(self._save)
         root.addWidget(self.btn)
         root.addStretch(1)
@@ -388,15 +409,21 @@ class HistoryPage(QWidget):
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 14)
+        root.setSpacing(12)
+        root.addWidget(section_label("任务历史"))
         btns = QHBoxLayout()
-        self.btn_refresh = QPushButton("刷新")
-        self.btn_clear = QPushButton("清空历史")
+        self.btn_refresh = make_button("刷新", "↻", kind="ghost")
+        self.btn_clear = make_button("清空历史", "✕", kind="danger")
         btns.addWidget(self.btn_refresh); btns.addWidget(self.btn_clear)
         btns.addStretch(1)
         root.addLayout(btns)
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["时间", "主任务", "状态", "子任务数"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.itemDoubleClicked.connect(self._show_detail)
         root.addWidget(self.table)
@@ -442,31 +469,39 @@ class SettingsPage(QWidget):
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 14)
+        root.setSpacing(12)
+        root.addWidget(section_label("运行设置"))
         g = self.ctx.cfg.get("general", {})
+        box = QGroupBox("基本设置")
+        f = QFormLayout(box)
         cloud = self.ctx.cfg.get("cloud", {})
         w = self.ctx.cfg.get("weights", {})
 
-        f = QFormLayout()
         self.ollama = QLineEdit(g.get("ollama_url", "http://127.0.0.1:11434"))
         self.timeout = QSpinBox(); self.timeout.setRange(5, 600); self.timeout.setValue(int(g.get("timeout_seconds", 120)))
         self.w_cap = QDoubleSpinBox(); self.w_cap.setRange(0, 1); self.w_cap.setDecimals(1)
         self.w_cap.setValue(float(w.get("capability", 0.7)))
         self.w_cost = QDoubleSpinBox(); self.w_cost.setRange(0, 1); self.w_cost.setDecimals(1)
         self.w_cost.setValue(float(w.get("cost", 0.3)))
-        self.cb_base = QLineEdit(cloud.get("base_url", "https://api.openai.com/v1"))
-        self.cb_model = QLineEdit(cloud.get("default_model", ""))
-        self.cb_key = QLineEdit(app_config.load_credential("cloud_api_key",""))
-        self.cb_key.setEchoMode(QLineEdit.Password)
         f.addRow("Ollama 地址", self.ollama)
         f.addRow("单次调用超时(秒)", self.timeout)
         f.addRow("能力权重", self.w_cap)
         f.addRow("成本权重", self.w_cost)
-        f.addRow("云端 Base URL", self.cb_base)
-        f.addRow("云端默认模型", self.cb_model)
-        f.addRow("云端 API Key(本地保存)", self.cb_key)
-        root.addLayout(f)
+        root.addWidget(box)
 
-        self.btn = QPushButton("保存设置")
+        cb = QGroupBox("云端接入")
+        cf = QFormLayout(cb)
+        self.cb_base = QLineEdit(cloud.get("base_url", "https://api.openai.com/v1"))
+        self.cb_model = QLineEdit(cloud.get("default_model", ""))
+        self.cb_key = QLineEdit(app_config.load_credential("cloud_api_key", ""))
+        self.cb_key.setEchoMode(QLineEdit.Password)
+        cf.addRow("云端 Base URL", self.cb_base)
+        cf.addRow("云端默认模型", self.cb_model)
+        cf.addRow("云端 API Key(本地保存)", self.cb_key)
+        root.addWidget(cb)
+
+        self.btn = make_button("保存设置", "✓")
         self.btn.clicked.connect(self._save)
         root.addWidget(self.btn)
         root.addStretch(1)
@@ -509,6 +544,7 @@ class MainWindow(QMainWindow):
         self.ctx = ctx
         self.setWindowTitle("Agent 自动化智能体 · 正式版")
         self.resize(1080, 720)
+        self.setStyleSheet(APP_QSS)   # 全局现代浅色主题
 
         self.tabs = QTabWidget()
         self.workbench = WorkbenchPage(ctx)
