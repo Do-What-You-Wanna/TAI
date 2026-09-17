@@ -1,6 +1,11 @@
 # 敏感信息：存放关键账户/密码的文档，绝不可提交到远程仓库
 credentials.md
 
+# Python 虚拟环境与缓存
+agent_app/.venv/
+__pycache__/
+*.pyc
+
 # Node / 常见构建产物
 node_modules/
 dist/

@@ -1,0 +1,4 @@
+# Agent demo 运行依赖
+PySide6>=6.6
+requests>=2.31
+openai>=1.30
