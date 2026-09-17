@@ -26,7 +26,7 @@ from .. import config as app_config
 from ..core.models import ModelInfo, ModelRegistry
 from ..core.orchestrator import Orchestrator
 from ..core.task_history import TaskHistory, assignment_to_dict
-from .theme import APP_QSS, make_button, section_label
+from .theme import APP_QSS, make_button, section_label, empty_hint, styled_tab_text
 
 
 @dataclass
@@ -111,9 +111,16 @@ class WorkbenchPage(QWidget):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         root.addWidget(QLabel("子任务分配结果"))
         root.addWidget(self.table)
+        # 空状态提示
+        self.empty_label = empty_hint("尚未运行任务，在上方输入任务后点击「运行」")
+        root.addWidget(self.empty_label)
 
         self.run_btn.clicked.connect(self._on_run)
         self.stop_btn.clicked.connect(self._on_stop)
+
+    def refresh_empty(self) -> None:
+        """初始化空状态显示。"""
+        self.empty_label.setVisible(self.table.rowCount() == 0)
 
     def _on_run(self) -> None:
         task = self.input.text().strip()
@@ -128,6 +135,7 @@ class WorkbenchPage(QWidget):
         self.status.setText("执行中…")
         self.overview.clear()
         self.table.setRowCount(0)
+        self.empty_label.setVisible(False)  # 运行开始时隐藏空状态
 
         self._thread = WorkThread(self.ctx.orchestrator, task, self.ctx.cancel)
         self._thread.done.connect(self._on_done)
@@ -220,6 +228,9 @@ class ModelManagerPage(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         # 主列不要被拉伸挤压，固定宽度列改给标识/来源
         root.addWidget(self.table)
+        # 空状态提示
+        self.empty_label = empty_hint("尚未添加模型，点击下方「新增」按钮开始")
+        root.addWidget(self.empty_label)
 
         form = QGroupBox("模型编辑")
         fl = QFormLayout(form)
@@ -261,6 +272,7 @@ class ModelManagerPage(QWidget):
         for m in self.ctx.registry.all():
             self._append_row(m)
             self.ctx.cfg["models"] = self.ctx.registry.to_list_dicts()
+        self.empty_label.setVisible(self.table.rowCount() == 0)
 
     def _append_row(self, m: ModelInfo) -> None:
         row = self.table.rowCount()
@@ -427,6 +439,9 @@ class HistoryPage(QWidget):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.itemDoubleClicked.connect(self._show_detail)
         root.addWidget(self.table)
+        # 空状态提示
+        self.empty_label = empty_hint("暂无任务历史，运行任务后将自动记录")
+        root.addWidget(self.empty_label)
         self.btn_refresh.clicked.connect(self.refresh)
         self.btn_clear.clicked.connect(self._clear)
 
@@ -439,6 +454,7 @@ class HistoryPage(QWidget):
                     r.get("status", ""), str(len(r.get("assignments", [])))]
             for c, v in enumerate(vals):
                 self.table.setItem(row, c, QTableWidgetItem(v))
+        self.empty_label.setVisible(self.table.rowCount() == 0)
 
     def _clear(self) -> None:
         if QMessageBox.question(self, "确认", "清空全部历史？") == QMessageBox.Yes:
@@ -543,31 +559,60 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ctx = ctx
         self.setWindowTitle("Agent 自动化智能体 · 正式版")
-        self.resize(1080, 720)
+        self.resize(1180, 760)
         self.setStyleSheet(APP_QSS)   # 全局现代浅色主题
 
+        # 居中容器：限制主内容最大宽度，大屏不拉满（视觉对称）
+        central = QWidget()
+        outer = QVBoxLayout(central)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
         self.tabs = QTabWidget()
+        self.tabs.setMaximumWidth(960)
+        self.tabs.setMinimumWidth(640)
+        # 居中放置
+        wrap = QHBoxLayout()
+        wrap.setContentsMargins(0, 0, 0, 0)
+        wrap.addStretch(1)
+        wrap.addWidget(self.tabs, 0)
+        wrap.addStretch(1)
+        outer.addLayout(wrap)
+
         self.workbench = WorkbenchPage(ctx)
         self.models_page = ModelManagerPage(ctx)
         self.rules_page = RulesPage(ctx)
         self.history_page = HistoryPage(ctx)
         self.settings_page = SettingsPage(ctx)
 
-        self.tabs.addTab(self.workbench, "工作台")
-        self.tabs.addTab(self.models_page, "模型管理")
-        self.tabs.addTab(self.rules_page, "规则配置")
-        self.tabs.addTab(self.history_page, "任务历史")
-        self.tabs.addTab(self.settings_page, "设置")
-        self.setCentralWidget(self.tabs)
+        # 标签页加图标前缀
+        self.tabs.addTab(self.workbench, styled_tab_text("工作台"))
+        self.tabs.addTab(self.models_page, styled_tab_text("模型管理"))
+        self.tabs.addTab(self.rules_page, styled_tab_text("规则配置"))
+        self.tabs.addTab(self.history_page, styled_tab_text("任务历史"))
+        self.tabs.addTab(self.settings_page, styled_tab_text("设置"))
+        self.setCentralWidget(central)
 
         self.models_page.saved.connect(self._on_config_saved)
         self.rules_page.saved.connect(self._on_config_saved)
         self.settings_page.saved.connect(self._on_config_saved)
+        # 状态栏：连接状态色块
+        self.status_label = QLabel("  ●  ")
+        self.status_label.setProperty("status", "ok")
+        self.statusBar().addWidget(self.status_label)
         self.statusBar().showMessage("就绪")
 
         # 初始刷新各页
         self.models_page.refresh()
         self.history_page.refresh()
+        self.workbench.refresh_empty()
+
+    def set_status(self, text: str, level: str = "ok") -> None:
+        """更新状态栏色块和文字。level: ok/warn/error"""
+        self.status_label.setProperty("status", level)
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
+        self.statusBar().showMessage(text)
 
     def _on_config_saved(self) -> None:
         # 配置变更后重建编排器，并刷新各页
